@@ -275,11 +275,30 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
         if kconfig_file.exists():
             with open(kconfig_file, "r") as f:
                 content = f.read()
+            # [5.10 修正] 原实现把整行 `default "..." if XXX` 替换成裸的
+            # `lockdown,baseband_guard`，丢掉 default 关键字/引号/完整 LSM 列表/if 条件，
+            # 导致 Kconfig 解析报 unknown statement "lockdown"。
+            # 改为只在 default "..." 的引号内追加 baseband_guard，其余原样保留。
+            def _patch_lsm_default(m):
+                head, default_line, tail = m.group(1), m.group(2), m.group(3)
+                if 'lockdown' in default_line and 'baseband_guard' not in default_line:
+                    new_line = re.sub(
+                        r'(default\s+")([^"]*?)(")',
+                        lambda s: s.group(1) + s.group(2) + ',baseband_guard' + s.group(3),
+                        default_line,
+                    )
+                    return head + new_line + tail
+                return m.group(0)
+
             content = re.sub(r'(config LSM.*?)(default .*)(\n.*?help)',
-                           lambda m: m.group(1) + ('lockdown,baseband_guard' if 'lockdown' in m.group(2) and 'baseband_guard' not in m.group(2) else m.group(2)) + m.group(3),
-                           content, flags=re.DOTALL)
+                             _patch_lsm_default, content, flags=re.DOTALL)
             with open(kconfig_file, "w") as f:
                 f.write(content)
+            # 验证：打印注入后的 LSM default 行
+            for line in content.splitlines():
+                if line.strip().startswith('default') and 'baseband_guard' in line:
+                    logger.info(f"BBG Kconfig patched: {line.strip()}")
+                    break
 
     def apply_susfs_patches(self):
         logger.info("=== 应用 SUSFS 补丁 ===")
