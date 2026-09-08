@@ -507,6 +507,19 @@ jobs:
             echo "KSU_LATEST_COMMIT_DATE=未知" >> $GITHUB_ENV
           fi
 
+      - name: 设置管理器版本显示（锁定 SukiSU 提交 + 自定义后缀）
+        working-directory: ${{ env.KERNEL_ROOT }}
+        run: |
+          KSU_COMMIT="6c5603f0c853a94256940273efc433cbbc85f57a"
+          KSU_SUFFIX="开源项目花钱就是你被骗了"
+          cd KernelSU
+          git fetch --unshallow 2>/dev/null || true
+          git checkout "$KSU_COMMIT"
+          git checkout -B "$KSU_SUFFIX"
+          echo "SukiSU commit : $(git rev-parse --short HEAD)"
+          echo "分支名(@后缀) : $(git rev-parse --abbrev-ref HEAD)"
+          echo "预期管理器显示: v4.2.0-$(git rev-parse --short HEAD)@$KSU_SUFFIX"
+
       - name: 修复 SukiSU 内核卸载功能缺失的 setter
         if: inputs.ksu_variant == 'SukiSU' || inputs.ksu_variant == 'SukiSU(40726)' || inputs.ksu_variant == 'SukiSU(40548)'
         working-directory: ${{ env.KERNEL_ROOT }}/KernelSU
