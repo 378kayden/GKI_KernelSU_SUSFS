@@ -511,7 +511,7 @@ jobs:
         working-directory: ${{ env.KERNEL_ROOT }}
         run: |
           KSU_COMMIT="6c5603f0c853a94256940273efc433cbbc85f57a"
-          KSU_SUFFIX="开源项目花钱就是你被骗了"
+          KSU_SUFFIX="开源项目编译花钱就是你被骗了"
           cd KernelSU
           git fetch --unshallow 2>/dev/null || true
           git checkout "$KSU_COMMIT"
