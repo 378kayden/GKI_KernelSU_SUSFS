@@ -1601,6 +1601,45 @@ jobs:
       #     rm -rf Image
       #     mv oImage Image
 
+      - name: 应用 KPM 补丁（patch_linux 修补 Image，使 KPM 真正可用）
+        if: startsWith(inputs.use_kpm, 'patched')
+        run: |
+          case "${{ inputs.android_version }}" in
+            "android12"|"android13")
+              TARGET_PATH="$KERNEL_ROOT/out/${{ inputs.android_version }}-${{ inputs.kernel_version }}/dist"
+              ;;
+            "android14"|"android15"|"android16")
+              TARGET_PATH="$KERNEL_ROOT/bazel-bin/common/kernel_aarch64"
+              ;;
+            *)
+              echo "::error::未知的 android_version，跳过 KPM 补丁"
+              exit 1
+              ;;
+          esac
+
+          echo "KPM 补丁目标目录: $TARGET_PATH"
+          ls -l "$TARGET_PATH/Image"
+
+          cp "$SUKISU_PATCHES/kpm/patch_linux" "$TARGET_PATH/patch"
+          cd "$TARGET_PATH"
+          cp -f Image Image.orig
+          chmod 777 patch
+          ./patch
+          PATCH_RC=$?
+          echo "patch_linux 退出码: $PATCH_RC"
+
+          if [ -f oImage ] && [ -s oImage ]; then
+            mv -f oImage Image
+            rm -f Image.orig patch
+            echo "KPM 补丁成功，新 Image 大小: $(stat -c%s Image)"
+          else
+            echo "::warning::patch_linux 未产出 oImage，KPM 补丁失败，已回退原始 Image（内核仍可正常开机，但无 KPM）"
+            mv -f Image.orig Image
+            rm -f patch oImage
+          fi
+
+          ls -l "$TARGET_PATH/Image"
+
       - name: 准备 Boot 镜像
         run: |
           mkdir -p bootimgs
