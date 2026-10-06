@@ -646,6 +646,18 @@ jobs:
             echo "KSU_LATEST_COMMIT_DATE=未知" >> $GITHUB_ENV
           fi
 
+      - name: 对齐内核 KSU 版本号为 40900（配对官方 release 管理器）
+        if: inputs.ksu_variant == 'SukiSU' && inputs.ksu_mode != '禁用KSU'
+        working-directory: ${{ env.KERNEL_ROOT }}
+        run: |
+          for MF in common/drivers/kernelsu/Makefile drivers/kernelsu/Makefile KernelSU/kernel/Makefile; do
+            if [ -f "$MF" ]; then
+              sed -i 's|^KSU_VERSION *:= .*|KSU_VERSION     := 40900|' "$MF"
+              echo "已对齐 KSU_VERSION 到 40900: $MF"
+              grep -n "^KSU_VERSION" "$MF"
+            fi
+          done
+
       - name: 配置 SukiSU 管理器信息
         if: (inputs.ksu_variant == 'SukiSU' || inputs.ksu_variant == 'SukiSU(40726)' || inputs.ksu_variant == 'SukiSU(40548)') && inputs.ksu_mode != '禁用KSU'
         working-directory: ${{ env.KERNEL_ROOT }}/KernelSU
