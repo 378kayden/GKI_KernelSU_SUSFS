@@ -711,6 +711,42 @@ jobs:
 
           echo "已更新 get_ksu_version_full 模板: $VERSION_TEMPLATE"
 
+      - name: 自定义内核版本 @ 后缀
+        if: inputs.ksu_variant == 'SukiSU' && inputs.ksu_mode != '禁用KSU'
+        working-directory: ${{ env.KERNEL_ROOT }}/KernelSU
+        run: |
+          SUFFIX="开源项目编译内核"
+          git checkout -B "$SUFFIX"
+          echo "当前分支: $(git rev-parse --abbrev-ref HEAD)"
+
+          python3 - <<'PYEOF'
+          import re
+
+          path = "./kernel/Kbuild"
+          suffix = "开源项目编译内核"
+
+          try:
+              text = open(path, encoding="utf-8").read()
+          except FileNotFoundError:
+              print("未找到 %s，跳过版本后缀定制" % path)
+              raise SystemExit
+
+          def fix(m):
+              head, body = m.group(1), m.group(2)
+              new = re.sub(r"@[^\s\[]*", "@" + suffix, body, count=1)
+              print("旧模板: %s" % body.strip())
+              print("新模板: %s" % new.strip())
+              return head + new
+
+          new_text, n = re.subn(r"(define get_ksu_version_full[ \t]*\n)([^\n]*)", fix, text, count=1)
+          if n == 0:
+              print("未找到 get_ksu_version_full，跳过")
+          else:
+              open(path, "w", encoding="utf-8").write(new_text)
+              print("已写入: %s" % path)
+          PYEOF
+
+
       # ==================== SUSFS 集成补丁导出 ====================
       # 仅 SukiSU / ReSukiSU 且启用 SUSFS 时导出，快照用临时索引生成树对象，
       # 不创建提交，避免改变「配置内核名称」读取的 HEAD 哈希
